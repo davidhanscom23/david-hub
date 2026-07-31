@@ -2,9 +2,9 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { ExerciseSourceBadge } from "@/components/fitops/exercise-source-badge";
+import { WatchExampleButton } from "@/components/fitops/exercise-video-modal";
 import { useFitOps } from "@/components/providers/fitops-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -116,15 +116,14 @@ export default function ExerciseDetailPage() {
           {exercise.sourceName} · {exercise.sourceMatchType}
           {exercise.sourceNotes ? ` · ${exercise.sourceNotes}` : ""}
         </p>
-        <a
-          href={exercise.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(buttonVariants())}
-        >
-          Open official demo
-          <ExternalLink className="size-4" />
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <WatchExampleButton
+            exerciseName={exercise.name}
+            videoYoutubeId={exercise.videoYoutubeId}
+            sourceName={exercise.sourceName}
+            className="h-10"
+          />
+        </div>
       </section>
 
       <section className="space-y-3 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
