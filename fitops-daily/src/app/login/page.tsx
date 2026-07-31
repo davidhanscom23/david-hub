@@ -41,17 +41,11 @@ export default function LoginPage() {
         if (err) throw err;
       }
       loginDemo();
-      router.replace("/today");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleDemo() {
-    loginDemo();
-    router.replace("/today");
   }
 
   return (
@@ -128,22 +122,25 @@ export default function LoginPage() {
                 Supabase is not configured yet. Use local demo mode to try the
                 full MVP on this device. Data stays in your browser.
               </p>
-              <Button type="button" className="w-full" onClick={handleDemo}>
+              <button
+                type="button"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--fit-primary)] px-4 text-sm font-medium text-white hover:bg-[var(--fit-primary)]/90"
+                onClick={() => loginDemo()}
+              >
                 Continue in demo mode
-              </Button>
+              </button>
             </div>
           )}
 
           {supabaseReady && (
             <div className="mt-4 border-t border-[var(--fit-border)] pt-4">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleDemo}
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-4 text-sm font-medium hover:bg-[var(--fit-surface)]"
+                onClick={() => loginDemo()}
               >
                 Continue in local demo mode
-              </Button>
+              </button>
             </div>
           )}
         </div>

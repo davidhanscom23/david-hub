@@ -7,13 +7,6 @@ import { useFitOps } from "@/components/providers/fitops-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { EXERCISES } from "@/lib/data/seed";
 import type { ScheduleMode, SourceMatchType } from "@/lib/types";
 
@@ -77,25 +70,22 @@ export default function SettingsPage() {
           />
         </div>
         <div>
-          <Label>Schedule mode</Label>
-          <Select
+          <Label htmlFor="scheduleMode">Schedule mode</Label>
+          <select
+            id="scheduleMode"
             value={state.profile.scheduleMode}
-            onValueChange={(v) =>
-              setProfile({ scheduleMode: v as ScheduleMode })
+            onChange={(e) =>
+              setProfile({ scheduleMode: e.target.value as ScheduleMode })
             }
+            className="mt-1.5 flex h-9 w-full rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-3 text-sm"
           >
-            <SelectTrigger className="mt-1.5 bg-[var(--fit-bg)]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="calendar">
-                Calendar (Mon A / Tue B / Wed C)
-              </SelectItem>
-              <SelectItem value="rotating">
-                Rotating (A → B → C on training days)
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="calendar">
+              Calendar (Mon A / Tue B / Wed C)
+            </option>
+            <option value="rotating">
+              Rotating (A → B → C on training days)
+            </option>
+          </select>
         </div>
         <div>
           <Label htmlFor="reminder">Preferred reminder time</Label>
@@ -167,28 +157,18 @@ export default function SettingsPage() {
                       placeholder="https://…"
                       className="bg-[var(--fit-bg)]"
                     />
-                    <Select
+                    <select
                       value={editMatch}
-                      onValueChange={(v) =>
-                        setEditMatch(v as SourceMatchType)
+                      onChange={(e) =>
+                        setEditMatch(e.target.value as SourceMatchType)
                       }
+                      className="flex h-9 w-full rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-3 text-sm"
                     >
-                      <SelectTrigger className="bg-[var(--fit-bg)]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="exact">exact</SelectItem>
-                        <SelectItem value="close variation">
-                          close variation
-                        </SelectItem>
-                        <SelectItem value="base movement">
-                          base movement
-                        </SelectItem>
-                        <SelectItem value="exact article">
-                          exact article
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <option value="exact">exact</option>
+                      <option value="close variation">close variation</option>
+                      <option value="base movement">base movement</option>
+                      <option value="exact article">exact article</option>
+                    </select>
                     <Button
                       size="sm"
                       onClick={() => {

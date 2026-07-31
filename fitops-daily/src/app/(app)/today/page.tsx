@@ -28,6 +28,7 @@ export default function TodayPage() {
     setExerciseStatus,
     setSessionStatus,
     getQuoteForDate,
+    ensureQuoteForDate,
   } = useFitOps();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [started, setStarted] = useState(false);
@@ -37,6 +38,7 @@ export default function TodayPage() {
   useEffect(() => {
     if (!ready || !today) return;
     const s = getOrCreateSession(today);
+    ensureQuoteForDate(today);
     setSession(s);
     setStarted(s.status !== "planned");
     setMinutes(s.minutes?.toString() ?? "");
@@ -72,14 +74,20 @@ export default function TodayPage() {
       .filter(Boolean);
   }, [isRecovery, state.sessions, today]);
 
-  if (!ready || !session) {
-    return <p className="text-sm text-[var(--fit-muted)]">Loading today…</p>;
-  }
+  useEffect(() => {
+    if (!session) return;
+    const latest = state.sessions.find((s) => s.id === session.id);
+    if (latest && latest.status !== session.status) setSession(latest);
+  }, [state.sessions, session]);
 
   function refreshSession(code?: WorkoutCode) {
     const s = getOrCreateSession(today, code);
     setSession(s);
     setStarted(true);
+  }
+
+  if (!ready || !session) {
+    return <p className="text-sm text-[var(--fit-muted)]">Loading today…</p>;
   }
 
   return (
@@ -145,12 +153,13 @@ export default function TodayPage() {
                     <p className="text-sm font-medium">{d!.title}</p>
                     <p className="text-xs text-[var(--fit-muted)]">{d!.focus}</p>
                   </div>
-                  <Button
-                    size="sm"
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center rounded-lg bg-[var(--fit-primary)] px-3 text-xs font-medium text-white"
                     onClick={() => refreshSession(d!.code as WorkoutCode)}
                   >
                     Do this today
-                  </Button>
+                  </button>
                 </div>
               ))}
             </div>
