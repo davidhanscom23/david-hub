@@ -41,6 +41,8 @@ export interface Exercise {
   sourceUrl: string;
   sourceMatchType: SourceMatchType;
   sourceNotes: string;
+  /** Official/accredited demo on YouTube for in-app playback. */
+  videoYoutubeId: string;
 }
 
 export interface WorkoutDay {

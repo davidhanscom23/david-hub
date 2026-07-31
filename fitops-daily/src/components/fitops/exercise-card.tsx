@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 import type { Exercise, ExerciseStatus, SessionExerciseLog, WorkoutItem } from "@/lib/types";
 import { formatTarget } from "@/lib/workout/logic";
 import { ExerciseSourceBadge } from "@/components/fitops/exercise-source-badge";
-import { buttonVariants } from "@/components/ui/button";
+import { WatchExampleButton } from "@/components/fitops/exercise-video-modal";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -63,15 +62,11 @@ export function ExerciseCard({
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <a
-          href={exercise.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}
-        >
-          View Demo
-          <ExternalLink className="size-3.5" />
-        </a>
+        <WatchExampleButton
+          exerciseName={exercise.name}
+          videoYoutubeId={exercise.videoYoutubeId}
+          sourceName={exercise.sourceName}
+        />
       </div>
 
       {onStatusChange && (

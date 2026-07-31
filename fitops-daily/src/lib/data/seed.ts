@@ -65,7 +65,7 @@ export const WORKOUT_DAYS: WorkoutDay[] = [
   },
 ];
 
-type SeedExercise = Omit<Exercise, "id"> & { id?: string };
+type SeedExercise = Omit<Exercise, "id" | "videoYoutubeId"> & { id?: string };
 
 const exerciseDefs: SeedExercise[] = [
   {
@@ -503,9 +503,38 @@ const exerciseDefs: SeedExercise[] = [
   },
 ];
 
+/** In-app demo videos (YouTube). Prefer NASM form videos linked from the exercise library. */
+const VIDEO_YOUTUBE_IDS: Record<string, string> = {
+  "modified-burpee": "Ny8JWqh4lNg",
+  "alternating-step-up": "URHdW9js6DM",
+  "incline-diamond-push-up": "0JUrOH--Kdk",
+  "wide-push-up": "WDIpL0pjun0",
+  "reverse-crunch": "wtKWBzDwfIM",
+  "scissor-kick": "bxn9FBrt4-A",
+  "prone-cobra": "keErJXdp2lE",
+  "single-leg-glute-bridge": "SKOMwg1JLrU",
+  "step-up": "URHdW9js6DM",
+  "cross-body-mountain-climber": "MDxfAuBbHHA",
+  burpee: "Ny8JWqh4lNg",
+  "forearm-plank": "mwlp75MS6Rg",
+  "squat-press": "UYbsgiiZgao",
+  "squat-thrust": "Ny8JWqh4lNg",
+  "skater-squat": "h6lET2_DLA0",
+  "wide-stance-calf-raise": "8k435cj30gc",
+  "elbow-walkout": "6Tv4xTRPtUc",
+  "good-morning-hip-hinge": "Daq-wJMUnes",
+  "sit-up-or-crunch": "QFLftqPWjoI",
+  "bent-knee-leg-raise": "wtKWBzDwfIM",
+  "inverted-row": "hXTc1mDnZCw",
+  "side-lunge": "vwK7vZNQwUI",
+  "walking-lunge": "UInwcEa5BH4",
+  "plank-shoulder-tap": "MDxfAuBbHHA",
+};
+
 export const EXERCISES: Exercise[] = exerciseDefs.map((e, i) => ({
   ...e,
   id: `ex-${i + 1}`,
+  videoYoutubeId: VIDEO_YOUTUBE_IDS[e.slug],
 }));
 
 const bySlug = Object.fromEntries(EXERCISES.map((e) => [e.slug, e]));
