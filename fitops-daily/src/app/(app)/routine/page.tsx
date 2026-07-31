@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ExerciseCard } from "@/components/fitops/exercise-card";
+import { RestTimer } from "@/components/fitops/rest-timer";
 import {
   EXERCISES,
   WORKOUT_DAYS,
@@ -56,6 +57,8 @@ export default function RoutinePage() {
           catch-up.
         </p>
       </header>
+
+      <RestTimer />
 
       <div
         role="tablist"
