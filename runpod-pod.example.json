@@ -1,0 +1,15 @@
+{
+  "name": "davids-comfyui",
+  "imageName": "runpod/comfyui:latest",
+  "gpuTypeIds": [
+    "NVIDIA GeForce RTX 4090"
+  ],
+  "gpuCount": 1,
+  "containerDiskInGb": 50,
+  "volumeInGb": 100,
+  "ports": [
+    "8188/http",
+    "8080/http",
+    "22/tcp"
+  ]
+}
