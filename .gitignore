@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Client runtime output
+generated_images/
+
+# Local, machine-specific config and secrets (never commit)
+config.env
+.runpod_api_key
+*.log
+*.pid
