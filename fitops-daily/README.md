@@ -5,8 +5,9 @@ Private, mobile-first workout tracker for the decoded 3-day military-style bodyw
 ## Features
 
 - **Today** — date-aware Workout A/B/C or recovery/catch-up, stable daily quote, exercise checklist, journal
-- **Routine** — full weekly plan + all exercises
-- **Exercise detail** — cues, regressions/progressions, accredited NASM/ACE source links
+- **Routine** — full weekly plan + all exercises (military or calculator alternate)
+- **Calculator** — body metrics → backend-generated alternate regimen (AI when `OPENAI_API_KEY` is set, rules engine otherwise)
+- **Exercise detail** — cues, regressions/progressions, in-app demo videos
 - **Journal** — mood/energy/soreness + prompts, editable history
 - **Progress** — streak, weekly completion, heatmap, RPE, pain flags
 - **Settings** — timezone, calendar/rotating schedule, source link edits, CSV/JSON export
@@ -40,7 +41,15 @@ Demo data is stored in `localStorage` under `fitops-daily-v1`.
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...   # server/seed only — never expose to the browser
+OPENAI_API_KEY=...              # optional; enables AI regimen generation
 ```
+
+## Body calculator
+
+`POST /api/calculator/regimen` accepts current/goal weight, height, BMI, measurements, and focus.
+Without an API key it uses the deterministic rules engine; with `OPENAI_API_KEY` it asks an OpenAI-compatible model and validates exercises against the FitOps catalog.
+
+Use **Calculator** in the app, then **Use as alternate plan** to view it on **Routine**.
 
 5. Add auth redirect URLs:
    - `http://localhost:3000/auth/callback`

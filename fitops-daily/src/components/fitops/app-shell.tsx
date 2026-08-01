@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
+  Calculator,
   CalendarDays,
   ChartNoAxesCombined,
   Dumbbell,
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/today", label: "Today", icon: CalendarDays },
   { href: "/routine", label: "Routine", icon: Dumbbell },
+  { href: "/calculator", label: "Calc", icon: Calculator },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: ChartNoAxesCombined },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -24,7 +26,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--fit-border)] bg-[var(--fit-surface)]/95 backdrop-blur md:hidden">
-      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-1">
+      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-0.5">
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -32,7 +34,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center gap-0.5 px-0.5 py-2 text-[10px] font-medium transition-colors",
                   active
                     ? "text-[var(--fit-primary)]"
                     : "text-[var(--fit-muted)] hover:text-[var(--fit-text)]",
@@ -66,6 +68,8 @@ export function SideNav() {
         <ul className="space-y-1">
           {links.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
+            const fullLabel =
+              label === "Calc" ? "Calculator" : label;
             return (
               <li key={href}>
                 <Link
@@ -78,7 +82,7 @@ export function SideNav() {
                   )}
                 >
                   <Icon className="size-4" />
-                  {label}
+                  {fullLabel}
                 </Link>
               </li>
             );
