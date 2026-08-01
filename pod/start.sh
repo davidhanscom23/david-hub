@@ -39,8 +39,7 @@ start_comfyui() {
     )
   fi
 
-  local attempt
-  for attempt in {1..120}; do
+  for _ in {1..120}; do
     if comfy_is_ready; then
       log "ComfyUI is ready."
       return 0
