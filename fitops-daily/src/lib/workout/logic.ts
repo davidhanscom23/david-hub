@@ -173,6 +173,18 @@ export function sessionIsComplete(status: SessionStatus): boolean {
 
 export function pickStableQuoteIndex(dateStr: string, quoteCount: number): number {
   if (quoteCount <= 0) return 0;
+  // One unique quote per calendar day (no repeats within a year) when dateStr
+  // is a valid yyyy-MM-dd string; falls back to a stable hash otherwise.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (m) {
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    const dayOfYear = Math.floor(
+      (Date.UTC(year, month - 1, day) - Date.UTC(year, 0, 0)) / 86400000,
+    ); // 1..366
+    return (dayOfYear - 1) % quoteCount;
+  }
   let hash = 0;
   for (let i = 0; i < dateStr.length; i++) {
     hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0;
