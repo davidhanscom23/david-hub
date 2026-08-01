@@ -17,6 +17,7 @@ import type {
   WorkoutCode,
   WorkoutSession,
 } from "@/lib/types";
+import type { GeneratedRegimen } from "@/lib/calculator/types";
 import { QUOTES, getExerciseById, getItemsForDay } from "@/lib/data/seed";
 import {
   completeWorkout,
@@ -83,6 +84,8 @@ interface FitOpsContextValue {
       sourceMatchType?: string;
     },
   ) => void;
+  saveAlternateRegimen: (regimen: GeneratedRegimen | null) => void;
+  setActiveProgram: (program: "military" | "alternate") => void;
   exportJson: () => string;
   exportCsv: () => string;
   clearAllData: () => void;
@@ -257,6 +260,24 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
     [commit],
   );
 
+  const saveAlternateRegimen = useCallback(
+    (regimen: GeneratedRegimen | null) => {
+      commit((prev) => ({
+        ...prev,
+        alternateRegimen: regimen,
+        activeProgram: regimen ? "alternate" : "military",
+      }));
+    },
+    [commit],
+  );
+
+  const setActiveProgram = useCallback(
+    (program: "military" | "alternate") => {
+      commit((prev) => ({ ...prev, activeProgram: program }));
+    },
+    [commit],
+  );
+
   const exportJson = useCallback(() => {
     return JSON.stringify(exportData(state ?? loadState()), null, 2);
   }, [state]);
@@ -290,6 +311,8 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       getSessionLogs,
       setExerciseNote,
       setSourceOverride,
+      saveAlternateRegimen,
+      setActiveProgram,
       exportJson,
       exportCsv,
       clearAllData,
@@ -310,6 +333,8 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       getSessionLogs,
       setExerciseNote,
       setSourceOverride,
+      saveAlternateRegimen,
+      setActiveProgram,
       exportJson,
       exportCsv,
       clearAllData,

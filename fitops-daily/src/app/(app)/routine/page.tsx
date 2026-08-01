@@ -24,10 +24,16 @@ const tabs = [
 type TabId = (typeof tabs)[number]["id"];
 
 export default function RoutinePage() {
-  const { state } = useFitOps();
+  const { state, setActiveProgram } = useFitOps();
   const [tab, setTab] = useState<TabId>("A");
+  const [planView, setPlanView] = useState<"military" | "alternate">(
+    state.activeProgram === "alternate" && state.alternateRegimen
+      ? "alternate"
+      : "military",
+  );
 
   const days = WORKOUT_DAYS.filter((d) => d.code !== "RECOVERY");
+  const alternate = state.alternateRegimen;
 
   const allExercises = useMemo(() => {
     return EXERCISES.map((exercise) => {
@@ -54,12 +60,108 @@ export default function RoutinePage() {
         </h1>
         <p className="mt-1 text-sm text-[var(--fit-muted)]">
           Monday A, Tuesday B, Wednesday C. Thursday–Sunday are recovery and
-          catch-up.
+          catch-up. Or use a calculator-built alternate plan.
         </p>
       </header>
 
+      {alternate && (
+        <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-2">
+          <button
+            type="button"
+            onClick={() => {
+              setPlanView("military");
+              setActiveProgram("military");
+            }}
+            className={cn(
+              "rounded-lg px-3 py-2 text-sm font-medium",
+              planView === "military"
+                ? "bg-[var(--fit-primary)] text-white"
+                : "text-[var(--fit-muted)]",
+            )}
+          >
+            Military A/B/C
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPlanView("alternate");
+              setActiveProgram("alternate");
+            }}
+            className={cn(
+              "rounded-lg px-3 py-2 text-sm font-medium",
+              planView === "alternate"
+                ? "bg-[var(--fit-primary)] text-white"
+                : "text-[var(--fit-muted)]",
+            )}
+          >
+            Alternate: {alternate.name}
+          </button>
+          <Link
+            href="/calculator"
+            className="ml-auto self-center px-2 text-xs font-medium text-[var(--fit-primary)]"
+          >
+            Edit in Calculator
+          </Link>
+        </div>
+      )}
+
       <RestTimer />
 
+      {planView === "alternate" && alternate ? (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
+            <h2 className="font-semibold">{alternate.name}</h2>
+            <p className="mt-1 text-sm text-[var(--fit-muted)]">
+              {alternate.summary}
+            </p>
+          </div>
+          {alternate.days.map((day) => (
+            <div
+              key={day.code}
+              className="space-y-3 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4"
+            >
+              <div>
+                <p className="text-xs text-[var(--fit-muted)]">
+                  {day.weekdayHint} · {day.code}
+                </p>
+                <h3 className="font-semibold">{day.title}</h3>
+                <p className="text-sm text-[var(--fit-muted)]">{day.focus}</p>
+              </div>
+              <ul className="space-y-2">
+                {day.exercises.map((ex) => {
+                  const exercise = getExerciseById(
+                    EXERCISES.find((e) => e.slug === ex.slug)?.id ?? "",
+                  );
+                  if (!exercise) {
+                    return (
+                      <li key={ex.slug} className="text-sm">
+                        {ex.name} · {ex.targetCount} {ex.targetUnit}
+                      </li>
+                    );
+                  }
+                  const item = {
+                    id: `alt-${day.code}-${ex.slug}`,
+                    workoutDayId: day.code,
+                    exerciseId: exercise.id,
+                    orderIndex: 0,
+                    targetCount: ex.targetCount,
+                    targetUnit: ex.targetUnit,
+                    notes: ex.notes,
+                  };
+                  return (
+                    <ExerciseCard
+                      key={item.id}
+                      exercise={exercise}
+                      item={item}
+                    />
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
       <div
         role="tablist"
         aria-label="Routine views"
@@ -155,6 +257,8 @@ export default function RoutinePage() {
             </Link>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

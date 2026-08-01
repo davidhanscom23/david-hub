@@ -8,6 +8,7 @@ import type {
   WorkoutCode,
   WorkoutSession,
 } from "@/lib/types";
+import type { GeneratedRegimen } from "@/lib/calculator/types";
 import {
   DEMO_USER_ID,
   EXERCISES,
@@ -38,6 +39,10 @@ export interface AppState {
     string,
     { sourceUrl?: string; sourceName?: string; sourceMatchType?: string }
   >;
+  /** Saved alternate regimen from the body calculator. */
+  alternateRegimen: GeneratedRegimen | null;
+  /** Which plan Today/Routine should emphasize. */
+  activeProgram: "military" | "alternate";
 }
 
 function defaultState(): AppState {
@@ -56,6 +61,8 @@ function defaultState(): AppState {
     dailyQuotes: [],
     exerciseNotes: {},
     sourceOverrides: {},
+    alternateRegimen: null,
+    activeProgram: "military",
   };
 }
 
@@ -257,6 +264,8 @@ export function exportData(state: AppState) {
     dailyQuotes: state.dailyQuotes,
     exerciseNotes: state.exerciseNotes,
     sourceOverrides: state.sourceOverrides,
+    alternateRegimen: state.alternateRegimen,
+    activeProgram: state.activeProgram,
     catalog: { exercises: EXERCISES, workoutDays: WORKOUT_DAYS, workoutItems: WORKOUT_ITEMS, quotes: QUOTES },
   };
 }
