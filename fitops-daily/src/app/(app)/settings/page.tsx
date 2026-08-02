@@ -19,6 +19,7 @@ export default function SettingsPage() {
     exportCsv,
     clearAllData,
     setSourceOverride,
+    cloudSyncError,
   } = useFitOps();
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -237,7 +238,18 @@ export default function SettingsPage() {
                     : "Anonymous"}
             </dd>
           </div>
+          {state.authMode === "supabase" ? (
+            <div className="flex justify-between gap-3">
+              <dt className="text-[var(--fit-muted)]">Cloud sync</dt>
+              <dd className="text-right font-medium">
+                {cloudSyncError ? "Error" : state.cloudUpdatedAt ? "On" : "Pending"}
+              </dd>
+            </div>
+          ) : null}
         </dl>
+        {cloudSyncError ? (
+          <p className="text-sm text-destructive">{cloudSyncError}</p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -268,10 +280,9 @@ export default function SettingsPage() {
           )}
         </div>
         <p className="text-xs text-[var(--fit-muted)]">
-          Each account keeps its own workout history on this device. With
-          Supabase Auth, friends can create accounts on any phone that opens
-          your deploy. Manage email confirmation and account deletion from your
-          Supabase project dashboard.
+          With Supabase, each account syncs training data to your project so it
+          follows the user across devices. Manage email confirmation and account
+          deletion from the Supabase dashboard.
         </p>
       </section>
 

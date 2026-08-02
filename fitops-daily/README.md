@@ -11,15 +11,38 @@ Private, mobile-first workout tracker for the decoded 3-day military-style bodyw
 - **Journal** — mood/energy/soreness + prompts, editable history
 - **Progress** — streak, weekly completion, heatmap, RPE, pain flags
 - **Settings** — timezone, calendar/rotating schedule, source link edits, CSV/JSON export
-- **Accounts** — Create account / Sign in for friends (Supabase Auth, or local accounts on one device)
+- **Accounts** — Supabase Auth + cloud sync so each friend has their own login and history
 
 ## Stack
 
 - Next.js App Router + TypeScript + Tailwind CSS + shadcn/ui
-- Supabase Auth + Postgres (optional for local demo)
+- Supabase Auth + Postgres (recommended for sharing with friends)
 - Vitest unit tests for schedule/streak helpers
 
-## Quick start (local demo)
+## Connect your Supabase project
+
+1. In the Supabase dashboard → **Project Settings → API**, copy **Project URL** and **anon public** key.
+2. Copy `.env.example` → `fitops-daily/.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+# optional:
+# SUPABASE_SERVICE_ROLE_KEY=...   # never expose to the browser
+# OPENAI_API_KEY=...              # AI calculator
+```
+
+3. In **SQL Editor**, run in order:
+   - `supabase/migrations/001_schema.sql` (tables, RLS, signup → profile trigger)
+   - `supabase/migrations/002_user_app_state.sql` (cloud sync columns on `profiles`)
+   - `supabase/seed.sql`
+   - `npm run seed:sql` then apply `supabase/seed_exercises.sql`
+4. **Authentication → Providers**: enable **Email**.
+5. For a small private invite, turn **Confirm email** off under Auth settings (otherwise friends must click the email link first).
+6. **Authentication → URL configuration**:
+   - Site URL: `http://localhost:3000` (or your deploy URL)
+   - Redirect URLs: `http://localhost:3000/auth/callback` and `https://YOUR-DOMAIN/auth/callback`
+7. Start the app:
 
 ```bash
 cd fitops-daily
@@ -27,44 +50,25 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). From the login screen you can:
+Login uses Supabase Auth. Workouts, journals, and settings sync to `profiles.app_state` (RLS: each user only sees their row). Settings shows **Cloud sync: On** when writes succeed.
 
-- **Create account / Sign in** — each person gets their own login and isolated workout history
-- **Continue in demo mode** — single shared browser trial (no password)
+## Share with friends
 
-Without Supabase env vars, accounts are stored on that device only (salted PBKDF2 passwords in `localStorage`). For friends on other phones, use Supabase Auth below.
+1. Deploy with the same `NEXT_PUBLIC_SUPABASE_*` env vars.
+2. Send friends the URL → **Create account**.
+3. Each person gets their own Auth user + synced training history on any device.
 
-Per-user data keys look like `fitops-daily-v1:<userId>` (demo uses `fitops-daily-v1`).
+Without Supabase env vars, the app falls back to on-device accounts / demo mode only.
 
-## Share with friends (individual accounts)
-
-1. Deploy the app (Vercel or similar) with Supabase env vars set.
-2. In the Supabase dashboard → **Authentication**:
-   - Enable **Email** provider
-   - Decide whether **Confirm email** is required (off is easier for a small private invite)
-   - Add redirect URLs: `https://YOUR-DOMAIN/auth/callback` (and localhost for dev)
-3. Send friends the app URL. They tap **Create account**, pick email + password, and start training.
-4. Each account keeps its own sessions, journal, and progress.
-
-Local-only multi-account (no Supabase) still works on a shared computer: each friend creates an account on that browser; switching accounts is Sign out → Sign in.
-
-## Supabase setup
-
-1. Create a Supabase project.
-2. Run `supabase/migrations/001_schema.sql` in the SQL editor.
-3. Run `supabase/seed.sql`, then `npm run seed:sql` and apply `supabase/seed_exercises.sql`.
-4. Copy `.env.example` → `.env.local` and fill:
+## Quick start (demo only, no Supabase)
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...   # server/seed only — never expose to the browser
-OPENAI_API_KEY=...              # optional; enables AI regimen generation
+cd fitops-daily
+npm install
+npm run dev
 ```
 
-5. Add auth redirect URLs:
-   - `http://localhost:3000/auth/callback`
-   - `https://YOUR-DOMAIN/auth/callback`
+Choose **Continue in demo mode**. Data stays in browser `localStorage` (`fitops-daily-v1`).
 
 ## Body calculator
 

@@ -54,7 +54,7 @@ export default function LoginPage() {
           });
           if (error) throw error;
           if (data.session && data.user) {
-            loginWithSupabaseSession({
+            await loginWithSupabaseSession({
               userId: data.user.id,
               email: data.user.email ?? email.trim(),
               displayName:
@@ -78,7 +78,7 @@ export default function LoginPage() {
         });
         if (error) throw error;
         if (!data.user) throw new Error("Sign-in succeeded but no user was returned.");
-        loginWithSupabaseSession({
+        await loginWithSupabaseSession({
           userId: data.user.id,
           email: data.user.email ?? email.trim(),
           displayName:
@@ -191,8 +191,8 @@ export default function LoginPage() {
 
         <p className="mt-4 text-xs text-muted-foreground">
           {supabaseReady
-            ? "Accounts use Supabase Auth. Each person gets their own session and training data."
-            : "No Supabase env vars detected — accounts stay on this device only. For friends on other phones, deploy with Supabase Auth (see README)."}
+            ? "Connected to Supabase. Each account syncs workouts and journals to your project so friends can use their own phone."
+            : "No Supabase env vars detected — accounts stay on this device only. Add your Supabase URL and anon key (see README)."}
         </p>
       </div>
 
