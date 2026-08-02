@@ -35,6 +35,8 @@ export interface AppState {
   authenticated: boolean;
   authMode: AuthMode;
   email: string | null;
+  /** Last successful / pending cloud sync stamp (ISO). */
+  cloudUpdatedAt: string | null;
   profile: Profile;
   sessions: WorkoutSession[];
   logs: SessionExerciseLog[];
@@ -56,6 +58,7 @@ export function defaultState(overrides?: Partial<Profile>): AppState {
     authenticated: false,
     authMode: "anonymous",
     email: null,
+    cloudUpdatedAt: null,
     profile: {
       id: DEMO_USER_ID,
       displayName: "Operator",
@@ -73,6 +76,10 @@ export function defaultState(overrides?: Partial<Profile>): AppState {
     alternateRegimen: null,
     activeProgram: "military",
   };
+}
+
+export function touchCloudUpdatedAt(state: AppState): AppState {
+  return { ...state, cloudUpdatedAt: new Date().toISOString() };
 }
 
 function uid(prefix: string): string {

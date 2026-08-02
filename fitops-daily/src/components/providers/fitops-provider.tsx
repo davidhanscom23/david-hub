@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -28,6 +29,11 @@ import {
   verifyLocalAccount,
 } from "@/lib/auth/local-accounts";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  clearRemoteAppState,
+  hydrateSupabaseState,
+  pushAppState,
+} from "@/lib/supabase/sync";
 import { DEMO_USER_ID, QUOTES, getExerciseById, getItemsForDay } from "@/lib/data/seed";
 import {
   clearUserData,
@@ -40,6 +46,7 @@ import {
   saveState,
   sessionsToCsv,
   todayInProfileTz,
+  touchCloudUpdatedAt,
   updateExerciseLog,
   updateProfile,
   upsertJournal,
@@ -63,7 +70,8 @@ interface FitOpsContextValue {
     userId: string;
     email: string | null;
     displayName?: string | null;
-  }) => void;
+  }) => Promise<void>;
+  cloudSyncError: string | null;
   logout: () => Promise<void>;
   setProfile: (patch: Partial<Profile>) => void;
   getOrCreateSession: (dateStr?: string, code?: WorkoutCode) => WorkoutSession;
@@ -144,6 +152,77 @@ function activateUserState(input: {
 
 export function FitOpsProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedUserId = useRef<string | null>(null);
+  const hydrateInFlight = useRef<Promise<void> | null>(null);
+
+  const scheduleCloudPush = useCallback((next: AppState) => {
+    if (next.authMode !== "supabase") return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => {
+      void pushAppState(next)
+        .then(() => setCloudSyncError(null))
+        .catch((err) => {
+          setCloudSyncError(
+            err instanceof Error
+              ? err.message
+              : "Could not sync to Supabase. Check that migration 002 is applied.",
+          );
+        });
+    }, 600);
+  }, []);
+
+  const applySupabaseUser = useCallback(
+    async (input: {
+      userId: string;
+      email: string | null;
+      displayName?: string | null;
+    }) => {
+      if (hydratedUserId.current === input.userId) return;
+      if (hydrateInFlight.current) {
+        await hydrateInFlight.current;
+        if (hydratedUserId.current === input.userId) return;
+      }
+
+      const run = (async () => {
+        setLocalSession(null);
+        const local = loadState(input.userId);
+        const { state: hydrated, shouldPush } = await hydrateSupabaseState({
+          userId: input.userId,
+          email: input.email,
+          displayName: input.displayName,
+          local,
+        });
+        saveState(hydrated);
+        setState(hydrated);
+        hydratedUserId.current = input.userId;
+        if (shouldPush) {
+          try {
+            const stamped = touchCloudUpdatedAt(hydrated);
+            saveState(stamped);
+            setState(stamped);
+            await pushAppState(stamped);
+            setCloudSyncError(null);
+          } catch (err) {
+            setCloudSyncError(
+              err instanceof Error
+                ? err.message
+                : "Could not sync to Supabase. Check that migration 002 is applied.",
+            );
+          }
+        }
+      })();
+
+      hydrateInFlight.current = run;
+      try {
+        await run;
+      } finally {
+        if (hydrateInFlight.current === run) hydrateInFlight.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -155,16 +234,12 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
           const { data } = await supabase.auth.getSession();
           const session = data.session;
           if (session?.user && !cancelled) {
-            setState(
-              activateUserState({
-                userId: session.user.id,
-                email: session.user.email ?? null,
-                displayName:
-                  (session.user.user_metadata?.display_name as string) ||
-                  null,
-                authMode: "supabase",
-              }),
-            );
+            await applySupabaseUser({
+              userId: session.user.id,
+              email: session.user.email ?? null,
+              displayName:
+                (session.user.user_metadata?.display_name as string) || null,
+            });
             return;
           }
         } catch {
@@ -199,18 +274,22 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
     let unsubscribe = () => {};
     try {
       const supabase = createClient();
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
         if (cancelled) return;
-        if (session?.user) {
-          setState(
-            activateUserState({
-              userId: session.user.id,
-              email: session.user.email ?? null,
-              displayName:
-                (session.user.user_metadata?.display_name as string) || null,
-              authMode: "supabase",
-            }),
-          );
+        if (event === "SIGNED_OUT") {
+          hydratedUserId.current = null;
+          return;
+        }
+        if (
+          session?.user &&
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION")
+        ) {
+          void applySupabaseUser({
+            userId: session.user.id,
+            email: session.user.email ?? null,
+            displayName:
+              (session.user.user_metadata?.display_name as string) || null,
+          });
         }
       });
       unsubscribe = () => data.subscription.unsubscribe();
@@ -221,17 +300,29 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       unsubscribe();
+      if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, []);
+  }, [applySupabaseUser]);
 
-  const commit = useCallback((updater: Updater) => {
-    setState((prev) => {
-      const base = prev ?? defaultState();
-      const next = updater(base);
-      if (next.authenticated) saveState(next);
-      return next;
-    });
-  }, []);
+  const commit = useCallback(
+    (updater: Updater) => {
+      setState((prev) => {
+        const base = prev ?? defaultState();
+        let next = updater(base);
+        if (next.authenticated) {
+          if (next.authMode === "supabase") {
+            next = touchCloudUpdatedAt(next);
+            saveState(next);
+            scheduleCloudPush(next);
+          } else {
+            saveState(next);
+          }
+        }
+        return next;
+      });
+    },
+    [scheduleCloudPush],
+  );
 
   const today = state ? todayInProfileTz(state) : "";
 
@@ -280,23 +371,19 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginWithSupabaseSession = useCallback(
-    (input: {
+    async (input: {
       userId: string;
       email: string | null;
       displayName?: string | null;
     }) => {
-      setLocalSession(null);
-      setState(
-        activateUserState({
-          ...input,
-          authMode: "supabase",
-        }),
-      );
+      await applySupabaseUser(input);
     },
-    [],
+    [applySupabaseUser],
   );
 
   const logout = useCallback(async () => {
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    hydratedUserId.current = null;
     setLocalSession(null);
     if (isSupabaseConfigured()) {
       try {
@@ -306,6 +393,7 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
         // ignore
       }
     }
+    setCloudSyncError(null);
     setState(defaultState());
   }, []);
 
@@ -474,19 +562,24 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
     clearStateForUser(userId);
     const authMode = state?.authMode ?? "anonymous";
     const email = state?.email ?? null;
+    if (authMode === "supabase") {
+      void clearRemoteAppState(userId).catch(() => {
+        setCloudSyncError("Local data cleared; cloud clear failed.");
+      });
+    }
     if (authMode === "local" || authMode === "supabase" || authMode === "demo") {
-      setState(
-        activateUserState({
-          userId,
-          email,
-          displayName: state?.profile.displayName,
-          authMode,
-        }),
-      );
+      const next = activateUserState({
+        userId,
+        email,
+        displayName: state?.profile.displayName,
+        authMode,
+      });
+      setState(next);
+      if (authMode === "supabase") scheduleCloudPush(touchCloudUpdatedAt(next));
     } else {
       setState(defaultState());
     }
-  }, [state]);
+  }, [scheduleCloudPush, state]);
 
   const value = useMemo<FitOpsContextValue>(
     () => ({
@@ -497,6 +590,7 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       signupLocal,
       loginLocal,
       loginWithSupabaseSession,
+      cloudSyncError,
       logout,
       setProfile,
       getOrCreateSession,
@@ -522,6 +616,7 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       signupLocal,
       loginLocal,
       loginWithSupabaseSession,
+      cloudSyncError,
       logout,
       setProfile,
       getOrCreateSession,
