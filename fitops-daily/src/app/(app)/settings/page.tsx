@@ -218,11 +218,31 @@ export default function SettingsPage() {
 
       <section className="space-y-3 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
         <h2 className="font-semibold">Account</h2>
+        <dl className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3">
+            <dt className="text-[var(--fit-muted)]">Signed in as</dt>
+            <dd className="text-right font-medium">
+              {state.email || state.profile.displayName || "Demo"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-[var(--fit-muted)]">Auth mode</dt>
+            <dd className="text-right font-medium capitalize">
+              {state.authMode === "supabase"
+                ? "Supabase"
+                : state.authMode === "local"
+                  ? "Local account"
+                  : state.authMode === "demo"
+                    ? "Demo"
+                    : "Anonymous"}
+            </dd>
+          </div>
+        </dl>
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               router.replace("/login");
             }}
           >
@@ -248,9 +268,10 @@ export default function SettingsPage() {
           )}
         </div>
         <p className="text-xs text-[var(--fit-muted)]">
-          Demo mode stores data in this browser only. With Supabase connected,
-          use the SQL policies and account deletion from your Supabase project
-          dashboard for server-side data.
+          Each account keeps its own workout history on this device. With
+          Supabase Auth, friends can create accounts on any phone that opens
+          your deploy. Manage email confirmation and account deletion from your
+          Supabase project dashboard.
         </p>
       </section>
 

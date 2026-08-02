@@ -1,152 +1,210 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useFitOps } from "@/components/providers/fitops-provider";
-import { SafetyNotice } from "@/components/fitops/safety-notice";
+import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isSupabaseConfigured, createClient } from "@/lib/supabase/client";
+import { useFitOps } from "@/components/providers/fitops-provider";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+
+type Mode = "signin" | "signup";
 
 export default function LoginPage() {
-  const { ready, state, loginDemo } = useFitOps();
   const router = useRouter();
+  const {
+    ready,
+    state,
+    loginDemo,
+    signupLocal,
+    loginLocal,
+    loginWithSupabaseSession,
+  } = useFitOps();
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const supabaseReady = isSupabaseConfigured();
 
   useEffect(() => {
     if (ready && state.authenticated) router.replace("/today");
   }, [ready, state.authenticated, router]);
 
-  async function handleSupabaseAuth(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!supabaseReady) return;
-    setLoading(true);
-    setError(null);
+    setBusy(true);
+    setMessage(null);
+
     try {
-      const supabase = createClient();
-      if (mode === "signin") {
-        const { error: err } = await supabase.auth.signInWithPassword({
-          email,
+      if (supabaseReady) {
+        const supabase = createClient();
+
+        if (mode === "signup") {
+          const { data, error } = await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              data: {
+                display_name: displayName.trim() || email.split("@")[0],
+              },
+            },
+          });
+          if (error) throw error;
+          if (data.session && data.user) {
+            loginWithSupabaseSession({
+              userId: data.user.id,
+              email: data.user.email ?? email.trim(),
+              displayName:
+                (data.user.user_metadata?.display_name as string) ||
+                displayName.trim() ||
+                null,
+            });
+            router.push("/today");
+            return;
+          }
+          setMessage(
+            "Account created. Check your email to confirm, then sign in. (If email confirmation is disabled in Supabase, you can sign in immediately.)",
+          );
+          setMode("signin");
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
           password,
         });
-        if (err) throw err;
-      } else {
-        const { error: err } = await supabase.auth.signUp({ email, password });
-        if (err) throw err;
+        if (error) throw error;
+        if (!data.user) throw new Error("Sign-in succeeded but no user was returned.");
+        loginWithSupabaseSession({
+          userId: data.user.id,
+          email: data.user.email ?? email.trim(),
+          displayName:
+            (data.user.user_metadata?.display_name as string) || null,
+        });
+        router.push("/today");
+        return;
       }
-      loginDemo();
+
+      if (mode === "signup") {
+        await signupLocal({
+          email,
+          password,
+          displayName: displayName.trim() || email.split("@")[0],
+        });
+        router.push("/today");
+        return;
+      }
+
+      await loginLocal(email, password);
+      router.push("/today");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      setMessage(err instanceof Error ? err.message : "Authentication failed.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--fit-accent)]">
-            FitOps Daily
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[var(--fit-text)]">
-            Sign in privately
-          </h1>
-          <p className="mt-2 text-sm text-[var(--fit-muted)]">
-            Know today&apos;s workout, mark what you did, and keep a simple
-            journal.
-          </p>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
+      <div className="space-y-2 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Shield className="h-6 w-6" />
         </div>
-
-        <div className="rounded-2xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-6 shadow-[0_8px_30px_rgba(31,36,28,0.06)]">
-          {supabaseReady ? (
-            <form onSubmit={handleSupabaseAuth} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1.5 bg-[var(--fit-bg)]"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={
-                    mode === "signin" ? "current-password" : "new-password"
-                  }
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1.5 bg-[var(--fit-bg)]"
-                />
-              </div>
-              {error && (
-                <p className="text-sm text-[var(--fit-alert)]">{error}</p>
-              )}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading
-                  ? "Working…"
-                  : mode === "signin"
-                    ? "Sign in"
-                    : "Create account"}
-              </Button>
-              <button
-                type="button"
-                className="w-full text-center text-sm text-[var(--fit-muted)] hover:text-[var(--fit-text)]"
-                onClick={() =>
-                  setMode((m) => (m === "signin" ? "signup" : "signin"))
-                }
-              >
-                {mode === "signin"
-                  ? "Need an account? Sign up"
-                  : "Have an account? Sign in"}
-              </button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm leading-relaxed text-[var(--fit-muted)]">
-                Supabase is not configured yet. Use local demo mode to try the
-                full MVP on this device. Data stays in your browser.
-              </p>
-              <button
-                type="button"
-                className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--fit-primary)] px-4 text-sm font-medium text-white hover:bg-[var(--fit-primary)]/90"
-                onClick={() => loginDemo()}
-              >
-                Continue in demo mode
-              </button>
-            </div>
-          )}
-
-          {supabaseReady && (
-            <div className="mt-4 border-t border-[var(--fit-border)] pt-4">
-              <button
-                type="button"
-                className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-4 text-sm font-medium hover:bg-[var(--fit-surface)]"
-                onClick={() => loginDemo()}
-              >
-                Continue in local demo mode
-              </button>
-            </div>
-          )}
-        </div>
-
-        <SafetyNotice compact />
+        <h1 className="font-display text-3xl font-bold tracking-wide">FITOPS DAILY</h1>
+        <p className="text-sm text-muted-foreground">
+          Private military-style workout tracker. Create your own account to keep
+          logs separate from friends.
+        </p>
       </div>
-    </div>
+
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === "signin" ? "default" : "outline"}
+            onClick={() => {
+              setMode("signin");
+              setMessage(null);
+            }}
+          >
+            Sign in
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "signup" ? "default" : "outline"}
+            onClick={() => {
+              setMode("signup");
+              setMessage(null);
+            }}
+          >
+            Create account
+          </Button>
+        </div>
+
+        <form className="space-y-3" onSubmit={onSubmit}>
+          {mode === "signup" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Display name</Label>
+              <Input
+                id="name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="David"
+                autoComplete="name"
+              />
+            </div>
+          ) : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            />
+          </div>
+          <Button className="w-full" type="submit" disabled={busy}>
+            {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
+          </Button>
+        </form>
+
+        {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
+
+        <p className="mt-4 text-xs text-muted-foreground">
+          {supabaseReady
+            ? "Accounts use Supabase Auth. Each person gets their own session and training data."
+            : "No Supabase env vars detected — accounts stay on this device only. For friends on other phones, deploy with Supabase Auth (see README)."}
+        </p>
+      </div>
+
+      <Button
+        variant="secondary"
+        onClick={() => {
+          loginDemo();
+          router.push("/today");
+        }}
+      >
+        Continue in demo mode
+      </Button>
+    </main>
   );
 }
