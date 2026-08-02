@@ -9,6 +9,12 @@ import type {
   WorkoutSession,
 } from "@/lib/types";
 import type { GeneratedRegimen } from "@/lib/calculator/types";
+import type { AuthMode } from "@/lib/auth/storage";
+import {
+  clearStateForUser,
+  loadStateForUser,
+  saveStateForUser,
+} from "@/lib/auth/storage";
 import {
   DEMO_USER_ID,
   EXERCISES,
@@ -25,10 +31,10 @@ import {
   pickStableQuoteIndex,
 } from "@/lib/workout/logic";
 
-const STORAGE_KEY = "fitops-daily-v1";
-
 export interface AppState {
   authenticated: boolean;
+  authMode: AuthMode;
+  email: string | null;
   profile: Profile;
   sessions: WorkoutSession[];
   logs: SessionExerciseLog[];
@@ -45,15 +51,18 @@ export interface AppState {
   activeProgram: "military" | "alternate";
 }
 
-function defaultState(): AppState {
+export function defaultState(overrides?: Partial<Profile>): AppState {
   return {
     authenticated: false,
+    authMode: "anonymous",
+    email: null,
     profile: {
       id: DEMO_USER_ID,
       displayName: "Operator",
       timezone: "America/New_York",
       scheduleMode: "calendar",
       preferredReminderTime: "07:00",
+      ...overrides,
     },
     sessions: [],
     logs: [],
@@ -70,20 +79,28 @@ function uid(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-export function loadState(): AppState {
+export function loadState(userId?: string | null): AppState {
   if (typeof window === "undefined") return defaultState();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    return { ...defaultState(), ...JSON.parse(raw) };
-  } catch {
-    return defaultState();
-  }
+  const saved = loadStateForUser(userId ?? DEMO_USER_ID);
+  if (!saved) return defaultState(userId ? { id: userId } : undefined);
+  return {
+    ...defaultState(userId ? { id: userId } : undefined),
+    ...saved,
+    profile: {
+      ...defaultState().profile,
+      ...saved.profile,
+      id: userId || saved.profile?.id || DEMO_USER_ID,
+    },
+  };
 }
 
 export function saveState(state: AppState): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  saveStateForUser(state.profile.id, state);
+}
+
+export function clearUserData(userId: string): void {
+  clearStateForUser(userId);
 }
 
 export function ensureDailyQuote(

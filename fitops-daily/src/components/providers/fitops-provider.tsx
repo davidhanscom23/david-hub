@@ -18,9 +18,21 @@ import type {
   WorkoutSession,
 } from "@/lib/types";
 import type { GeneratedRegimen } from "@/lib/calculator/types";
-import { QUOTES, getExerciseById, getItemsForDay } from "@/lib/data/seed";
+import type { AuthMode } from "@/lib/auth/storage";
+import { clearStateForUser } from "@/lib/auth/storage";
 import {
+  createLocalAccount,
+  getLocalAccountById,
+  getLocalSessionUserId,
+  setLocalSession,
+  verifyLocalAccount,
+} from "@/lib/auth/local-accounts";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { DEMO_USER_ID, QUOTES, getExerciseById, getItemsForDay } from "@/lib/data/seed";
+import {
+  clearUserData,
   completeWorkout,
+  defaultState,
   ensureDailyQuote,
   ensureSession,
   exportData,
@@ -41,7 +53,18 @@ interface FitOpsContextValue {
   state: AppState;
   today: string;
   loginDemo: () => void;
-  logout: () => void;
+  signupLocal: (input: {
+    email: string;
+    password: string;
+    displayName: string;
+  }) => Promise<void>;
+  loginLocal: (email: string, password: string) => Promise<void>;
+  loginWithSupabaseSession: (input: {
+    userId: string;
+    email: string | null;
+    displayName?: string | null;
+  }) => void;
+  logout: () => Promise<void>;
   setProfile: (patch: Partial<Profile>) => void;
   getOrCreateSession: (dateStr?: string, code?: WorkoutCode) => WorkoutSession;
   setExerciseStatus: (
@@ -93,18 +116,119 @@ interface FitOpsContextValue {
 
 const FitOpsContext = createContext<FitOpsContextValue | null>(null);
 
+function activateUserState(input: {
+  userId: string;
+  email: string | null;
+  displayName?: string | null;
+  authMode: AuthMode;
+}): AppState {
+  const existing = loadState(input.userId);
+  const next: AppState = {
+    ...existing,
+    authenticated: true,
+    authMode: input.authMode,
+    email: input.email,
+    profile: {
+      ...existing.profile,
+      id: input.userId,
+      displayName:
+        input.displayName?.trim() ||
+        existing.profile.displayName ||
+        input.email?.split("@")[0] ||
+        "Operator",
+    },
+  };
+  saveState(next);
+  return next;
+}
+
 export function FitOpsProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
 
   useEffect(() => {
-    setState(loadState());
+    let cancelled = false;
+
+    async function boot() {
+      if (isSupabaseConfigured()) {
+        try {
+          const supabase = createClient();
+          const { data } = await supabase.auth.getSession();
+          const session = data.session;
+          if (session?.user && !cancelled) {
+            setState(
+              activateUserState({
+                userId: session.user.id,
+                email: session.user.email ?? null,
+                displayName:
+                  (session.user.user_metadata?.display_name as string) ||
+                  null,
+                authMode: "supabase",
+              }),
+            );
+            return;
+          }
+        } catch {
+          // Fall through to local session.
+        }
+      }
+
+      const localId = getLocalSessionUserId();
+      if (localId) {
+        const account = getLocalAccountById(localId);
+        if (account && !cancelled) {
+          setState(
+            activateUserState({
+              userId: account.id,
+              email: account.email,
+              displayName: account.displayName,
+              authMode: "local",
+            }),
+          );
+          return;
+        }
+        setLocalSession(null);
+      }
+
+      if (!cancelled) setState(defaultState());
+    }
+
+    void boot();
+
+    if (!isSupabaseConfigured()) return;
+
+    let unsubscribe = () => {};
+    try {
+      const supabase = createClient();
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (cancelled) return;
+        if (session?.user) {
+          setState(
+            activateUserState({
+              userId: session.user.id,
+              email: session.user.email ?? null,
+              displayName:
+                (session.user.user_metadata?.display_name as string) || null,
+              authMode: "supabase",
+            }),
+          );
+        }
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const commit = useCallback((updater: Updater) => {
     setState((prev) => {
-      const base = prev ?? loadState();
+      const base = prev ?? defaultState();
       const next = updater(base);
-      saveState(next);
+      if (next.authenticated) saveState(next);
       return next;
     });
   }, []);
@@ -112,19 +236,77 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
   const today = state ? todayInProfileTz(state) : "";
 
   const loginDemo = useCallback(() => {
-    setState((prev) => {
-      const next = { ...(prev ?? loadState()), authenticated: true };
-      saveState(next);
-      return next;
+    const next = activateUserState({
+      userId: DEMO_USER_ID,
+      email: null,
+      displayName: "Operator",
+      authMode: "demo",
     });
+    setLocalSession(null);
+    setState(next);
   }, []);
 
-  const logout = useCallback(() => {
-    setState((prev) => {
-      const next = { ...(prev ?? loadState()), authenticated: false };
-      saveState(next);
-      return next;
-    });
+  const signupLocal = useCallback(
+    async (input: {
+      email: string;
+      password: string;
+      displayName: string;
+    }) => {
+      const account = await createLocalAccount(input);
+      setLocalSession(account.id);
+      setState(
+        activateUserState({
+          userId: account.id,
+          email: account.email,
+          displayName: account.displayName,
+          authMode: "local",
+        }),
+      );
+    },
+    [],
+  );
+
+  const loginLocal = useCallback(async (email: string, password: string) => {
+    const account = await verifyLocalAccount(email, password);
+    setLocalSession(account.id);
+    setState(
+      activateUserState({
+        userId: account.id,
+        email: account.email,
+        displayName: account.displayName,
+        authMode: "local",
+      }),
+    );
+  }, []);
+
+  const loginWithSupabaseSession = useCallback(
+    (input: {
+      userId: string;
+      email: string | null;
+      displayName?: string | null;
+    }) => {
+      setLocalSession(null);
+      setState(
+        activateUserState({
+          ...input,
+          authMode: "supabase",
+        }),
+      );
+    },
+    [],
+  );
+
+  const logout = useCallback(async () => {
+    setLocalSession(null);
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+      } catch {
+        // ignore
+      }
+    }
+    setState(defaultState());
   }, []);
 
   const setProfile = useCallback(
@@ -144,7 +326,7 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
         return ensureDailyQuote(ensured.state, date).state;
       });
       if (created) return created;
-      const base = state ?? loadState();
+      const base = state ?? defaultState();
       const date = dateStr ?? todayInProfileTz(base);
       return ensureSession(base, date, code).session;
     },
@@ -209,7 +391,7 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
 
   const getQuoteForDate = useCallback(
     (dateStr: string) => {
-      const base = state ?? loadState();
+      const base = state ?? defaultState();
       const { quoteId } = ensureDailyQuote(base, dateStr);
       const quote = QUOTES.find((q) => q.id === quoteId) ?? QUOTES[0];
       return { text: quote.quoteText, author: quote.author };
@@ -279,26 +461,42 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
   );
 
   const exportJson = useCallback(() => {
-    return JSON.stringify(exportData(state ?? loadState()), null, 2);
+    return JSON.stringify(exportData(state ?? defaultState()), null, 2);
   }, [state]);
 
   const exportCsv = useCallback(() => {
-    return sessionsToCsv((state ?? loadState()).sessions);
+    return sessionsToCsv((state ?? defaultState()).sessions);
   }, [state]);
 
   const clearAllData = useCallback(() => {
-    localStorage.removeItem("fitops-daily-v1");
-    const fresh = loadState();
-    setState(fresh);
-    saveState(fresh);
-  }, []);
+    const userId = state?.profile.id ?? DEMO_USER_ID;
+    clearUserData(userId);
+    clearStateForUser(userId);
+    const authMode = state?.authMode ?? "anonymous";
+    const email = state?.email ?? null;
+    if (authMode === "local" || authMode === "supabase" || authMode === "demo") {
+      setState(
+        activateUserState({
+          userId,
+          email,
+          displayName: state?.profile.displayName,
+          authMode,
+        }),
+      );
+    } else {
+      setState(defaultState());
+    }
+  }, [state]);
 
   const value = useMemo<FitOpsContextValue>(
     () => ({
       ready: state !== null,
-      state: state ?? loadState(),
+      state: state ?? defaultState(),
       today,
       loginDemo,
+      signupLocal,
+      loginLocal,
+      loginWithSupabaseSession,
       logout,
       setProfile,
       getOrCreateSession,
@@ -321,6 +519,9 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       state,
       today,
       loginDemo,
+      signupLocal,
+      loginLocal,
+      loginWithSupabaseSession,
       logout,
       setProfile,
       getOrCreateSession,
