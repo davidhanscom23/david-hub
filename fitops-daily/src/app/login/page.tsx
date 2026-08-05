@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,103 +108,116 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-4 py-10">
-      <div className="space-y-2 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Shield className="h-6 w-6" />
-        </div>
-        <h1 className="font-display text-3xl font-bold tracking-wide">FITOPS DAILY</h1>
-        <p className="text-sm text-muted-foreground">
-          Private military-style workout tracker. Create your own account to keep
-          logs separate from friends.
-        </p>
-      </div>
-
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant={mode === "signin" ? "default" : "outline"}
-            onClick={() => {
-              setMode("signin");
-              setMessage(null);
-            }}
-          >
-            Sign in
-          </Button>
-          <Button
-            type="button"
-            variant={mode === "signup" ? "default" : "outline"}
-            onClick={() => {
-              setMode("signup");
-              setMessage(null);
-            }}
-          >
-            Create account
-          </Button>
+    <main className="fitops-camo relative flex min-h-screen w-full flex-col justify-center px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 bg-[rgba(20,28,16,0.28)]" aria-hidden />
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-col gap-6">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/25 bg-[rgba(247,244,237,0.92)] shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+            <Image
+              src="/fitops-sergeant.png"
+              alt="FitOps Daily drill sergeant logo"
+              width={112}
+              height={112}
+              className="h-full w-full object-cover"
+              priority
+            />
+          </div>
+          <h1 className="font-display text-3xl font-bold tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]">
+            FITOPS DAILY
+          </h1>
+          <p className="text-sm text-white/85 drop-shadow-[0_1px_4px_rgba(0,0,0,0.4)]">
+            Private military-style workout tracker. Create your own account to keep
+            logs separate from friends.
+          </p>
         </div>
 
-        <form className="space-y-3" onSubmit={onSubmit}>
-          {mode === "signup" ? (
+        <div className="rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)]/95 p-5 shadow-[0_12px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={mode === "signin" ? "default" : "outline"}
+              onClick={() => {
+                setMode("signin");
+                setMessage(null);
+              }}
+            >
+              Sign in
+            </Button>
+            <Button
+              type="button"
+              variant={mode === "signup" ? "default" : "outline"}
+              onClick={() => {
+                setMode("signup");
+                setMessage(null);
+              }}
+            >
+              Create account
+            </Button>
+          </div>
+
+          <form className="space-y-3" onSubmit={onSubmit}>
+            {mode === "signup" ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Display name</Label>
+                <Input
+                  id="name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="David"
+                  autoComplete="name"
+                />
+              </div>
+            ) : null}
             <div className="space-y-1.5">
-              <Label htmlFor="name">Display name</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="David"
-                autoComplete="name"
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
               />
             </div>
-          ) : null}
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            />
-          </div>
-          <Button className="w-full" type="submit" disabled={busy}>
-            {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
-          </Button>
-        </form>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              />
+            </div>
+            <Button className="w-full" type="submit" disabled={busy}>
+              {busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
+            </Button>
+          </form>
 
-        {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
+          {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
 
-        <p className="mt-4 text-xs text-muted-foreground">
-          {supabaseReady
-            ? "Connected to Supabase. Each account syncs workouts and journals to your project so friends can use their own phone."
-            : "No Supabase env vars detected — accounts stay on this device only. Add your Supabase URL and anon key (see README)."}
-        </p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            {supabaseReady
+              ? "Connected to Supabase. Each account syncs workouts and journals to your project so friends can use their own phone."
+              : "No Supabase env vars detected — accounts stay on this device only. Add your Supabase URL and anon key (see README)."}
+          </p>
+        </div>
+
+        <Button
+          variant="secondary"
+          className="border border-white/20 bg-[rgba(247,244,237,0.92)] text-[var(--fit-text)] hover:bg-white"
+          onClick={() => {
+            loginDemo();
+            router.push("/today");
+          }}
+        >
+          Continue in demo mode
+        </Button>
       </div>
-
-      <Button
-        variant="secondary"
-        onClick={() => {
-          loginDemo();
-          router.push("/today");
-        }}
-      >
-        Continue in demo mode
-      </Button>
     </main>
   );
 }
