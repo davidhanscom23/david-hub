@@ -8,12 +8,10 @@ import { SafetyNotice } from "@/components/fitops/safety-notice";
 import { WatchExampleButton } from "@/components/fitops/exercise-video-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getExerciseBySlug } from "@/lib/data/seed";
 import { computeBmi, type GeneratedRegimen } from "@/lib/calculator/types";
+import type { CalculatorDraft, SexPreference } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-type Focus = "fat_loss" | "muscle_gain" | "recomp" | "endurance";
 
 function num(value: string): number | undefined {
   if (value.trim() === "") return undefined;
@@ -22,23 +20,14 @@ function num(value: string): number | undefined {
 }
 
 export default function CalculatorPage() {
-  const { state, saveAlternateRegimen, setActiveProgram } = useFitOps();
-  const [sex, setSex] = useState<"female" | "male" | "unspecified">(
-    "unspecified",
-  );
-  const [heightIn, setHeightIn] = useState("68");
-  const [currentWeightLb, setCurrentWeightLb] = useState("185");
-  const [currentBmi, setCurrentBmi] = useState("");
-  const [goalWeightLb, setGoalWeightLb] = useState("175");
-  const [waistIn, setWaistIn] = useState("");
-  const [chestIn, setChestIn] = useState("");
-  const [hipsIn, setHipsIn] = useState("");
-  const [goalWaistIn, setGoalWaistIn] = useState("");
-  const [goalFocus, setGoalFocus] = useState<Focus>("recomp");
-  const [daysPerWeek, setDaysPerWeek] = useState("3");
-  const [experience, setExperience] = useState<"beginner" | "intermediate">(
-    "beginner",
-  );
+  const {
+    state,
+    saveAlternateRegimen,
+    setActiveProgram,
+    setCalculatorDraft,
+  } = useFitOps();
+  const draft = state.calculatorDraft;
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -47,12 +36,16 @@ export default function CalculatorPage() {
   );
   const [savedFlash, setSavedFlash] = useState(false);
 
+  function patchDraft(patch: Partial<CalculatorDraft>) {
+    setCalculatorDraft(patch);
+  }
+
   const liveBmi = useMemo(() => {
-    const h = num(heightIn);
-    const w = num(currentWeightLb);
+    const h = num(draft.heightIn);
+    const w = num(draft.currentWeightLb);
     if (!h || !w) return null;
     return computeBmi(w, h);
-  }, [heightIn, currentWeightLb]);
+  }, [draft.heightIn, draft.currentWeightLb]);
 
   async function onGenerate(e: React.FormEvent) {
     e.preventDefault();
@@ -60,22 +53,22 @@ export default function CalculatorPage() {
     setError(null);
     try {
       const payload = {
-        sex,
-        heightIn: num(heightIn),
-        currentWeightLb: num(currentWeightLb),
-        currentBmi: num(currentBmi) ?? liveBmi,
+        sex: draft.sex,
+        heightIn: num(draft.heightIn),
+        currentWeightLb: num(draft.currentWeightLb),
+        currentBmi: num(draft.currentBmi) ?? liveBmi,
         currentMeasurements: {
-          waistIn: num(waistIn) ?? null,
-          chestIn: num(chestIn) ?? null,
-          hipsIn: num(hipsIn) ?? null,
+          waistIn: num(draft.waistIn) ?? null,
+          chestIn: num(draft.chestIn) ?? null,
+          hipsIn: num(draft.hipsIn) ?? null,
         },
-        goalWeightLb: num(goalWeightLb),
+        goalWeightLb: num(draft.goalWeightLb),
         goalMeasurements: {
-          waistIn: num(goalWaistIn) ?? null,
+          waistIn: num(draft.goalWaistIn) ?? null,
         },
-        goalFocus,
-        daysPerWeek: Number(daysPerWeek),
-        experience,
+        goalFocus: draft.goalFocus,
+        daysPerWeek: Number(draft.daysPerWeek),
+        experience: draft.experience,
       };
 
       const res = await fetch("/api/calculator/regimen", {
@@ -114,9 +107,9 @@ export default function CalculatorPage() {
           Body goal planner
         </h1>
         <p className="mt-1 text-sm text-[var(--fit-muted)]">
-          Enter current and goal metrics. The backend builds an alternate
-          regimen for your starting point — optional AI when configured, with a
-          solid rules engine otherwise.
+          Enter current and goal metrics. Your choices (including sex) save with
+          your account. The backend builds an alternate regimen — optional AI
+          when configured, rules engine otherwise.
         </p>
       </header>
 
@@ -130,8 +123,10 @@ export default function CalculatorPage() {
           <Field label="Sex (optional)">
             <select
               className={selectClass}
-              value={sex}
-              onChange={(e) => setSex(e.target.value as typeof sex)}
+              value={draft.sex}
+              onChange={(e) =>
+                patchDraft({ sex: e.target.value as SexPreference })
+              }
             >
               <option value="unspecified">Unspecified</option>
               <option value="female">Female</option>
@@ -141,9 +136,11 @@ export default function CalculatorPage() {
           <Field label="Experience">
             <select
               className={selectClass}
-              value={experience}
+              value={draft.experience}
               onChange={(e) =>
-                setExperience(e.target.value as typeof experience)
+                patchDraft({
+                  experience: e.target.value as CalculatorDraft["experience"],
+                })
               }
             >
               <option value="beginner">Beginner</option>
@@ -153,8 +150,8 @@ export default function CalculatorPage() {
           <Field label="Height (inches)">
             <Input
               inputMode="decimal"
-              value={heightIn}
-              onChange={(e) => setHeightIn(e.target.value)}
+              value={draft.heightIn}
+              onChange={(e) => patchDraft({ heightIn: e.target.value })}
               required
               className="bg-[var(--fit-bg)]"
             />
@@ -162,8 +159,8 @@ export default function CalculatorPage() {
           <Field label="Current weight (lb)">
             <Input
               inputMode="decimal"
-              value={currentWeightLb}
-              onChange={(e) => setCurrentWeightLb(e.target.value)}
+              value={draft.currentWeightLb}
+              onChange={(e) => patchDraft({ currentWeightLb: e.target.value })}
               required
               className="bg-[var(--fit-bg)]"
             />
@@ -173,8 +170,8 @@ export default function CalculatorPage() {
           >
             <Input
               inputMode="decimal"
-              value={currentBmi}
-              onChange={(e) => setCurrentBmi(e.target.value)}
+              value={draft.currentBmi}
+              onChange={(e) => patchDraft({ currentBmi: e.target.value })}
               placeholder={liveBmi != null ? String(liveBmi) : "Optional"}
               className="bg-[var(--fit-bg)]"
             />
@@ -182,8 +179,8 @@ export default function CalculatorPage() {
           <Field label="Goal weight (lb)">
             <Input
               inputMode="decimal"
-              value={goalWeightLb}
-              onChange={(e) => setGoalWeightLb(e.target.value)}
+              value={draft.goalWeightLb}
+              onChange={(e) => patchDraft({ goalWeightLb: e.target.value })}
               required
               className="bg-[var(--fit-bg)]"
             />
@@ -191,40 +188,44 @@ export default function CalculatorPage() {
           <Field label="Current waist (in)">
             <Input
               inputMode="decimal"
-              value={waistIn}
-              onChange={(e) => setWaistIn(e.target.value)}
+              value={draft.waistIn}
+              onChange={(e) => patchDraft({ waistIn: e.target.value })}
               className="bg-[var(--fit-bg)]"
             />
           </Field>
           <Field label="Goal waist (in)">
             <Input
               inputMode="decimal"
-              value={goalWaistIn}
-              onChange={(e) => setGoalWaistIn(e.target.value)}
+              value={draft.goalWaistIn}
+              onChange={(e) => patchDraft({ goalWaistIn: e.target.value })}
               className="bg-[var(--fit-bg)]"
             />
           </Field>
           <Field label="Current chest (in)">
             <Input
               inputMode="decimal"
-              value={chestIn}
-              onChange={(e) => setChestIn(e.target.value)}
+              value={draft.chestIn}
+              onChange={(e) => patchDraft({ chestIn: e.target.value })}
               className="bg-[var(--fit-bg)]"
             />
           </Field>
           <Field label="Current hips (in)">
             <Input
               inputMode="decimal"
-              value={hipsIn}
-              onChange={(e) => setHipsIn(e.target.value)}
+              value={draft.hipsIn}
+              onChange={(e) => patchDraft({ hipsIn: e.target.value })}
               className="bg-[var(--fit-bg)]"
             />
           </Field>
           <Field label="Goal focus">
             <select
               className={selectClass}
-              value={goalFocus}
-              onChange={(e) => setGoalFocus(e.target.value as Focus)}
+              value={draft.goalFocus}
+              onChange={(e) =>
+                patchDraft({
+                  goalFocus: e.target.value as CalculatorDraft["goalFocus"],
+                })
+              }
             >
               <option value="recomp">Recomp / general</option>
               <option value="fat_loss">Fat loss</option>
@@ -235,8 +236,8 @@ export default function CalculatorPage() {
           <Field label="Days per week">
             <select
               className={selectClass}
-              value={daysPerWeek}
-              onChange={(e) => setDaysPerWeek(e.target.value)}
+              value={draft.daysPerWeek}
+              onChange={(e) => patchDraft({ daysPerWeek: e.target.value })}
             >
               {[3, 4, 5, 6].map((d) => (
                 <option key={d} value={d}>
@@ -340,37 +341,26 @@ export default function CalculatorPage() {
               </div>
               <ul className="space-y-2">
                 {day.exercises.map((ex) => {
-                  const catalog = getExerciseBySlug(ex.slug);
+                  const exercise = getExerciseBySlug(ex.slug);
                   return (
                     <li
                       key={`${day.code}-${ex.slug}`}
-                      className="rounded-lg border border-[var(--fit-border)] px-3 py-2"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--fit-bg)] px-3 py-2 text-sm"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <Link
-                            href={`/exercise/${ex.slug}`}
-                            className="font-medium hover:text-[var(--fit-primary)]"
-                          >
-                            {ex.name}
-                          </Link>
-                          <p className="text-sm font-semibold tabular-nums text-[var(--fit-primary)]">
-                            {ex.targetCount} {ex.targetUnit}
-                          </p>
-                          {ex.notes && (
-                            <p className="text-xs text-[var(--fit-muted)]">
-                              {ex.notes}
-                            </p>
-                          )}
-                        </div>
-                        {catalog?.videoYoutubeId && (
-                          <WatchExampleButton
-                            exerciseName={catalog.name}
-                            videoYoutubeId={catalog.videoYoutubeId}
-                            sourceName={catalog.sourceName}
-                          />
-                        )}
+                      <div>
+                        <p className="font-medium">{ex.name}</p>
+                        <p className="text-xs text-[var(--fit-muted)]">
+                          {ex.targetCount} {ex.targetUnit}
+                          {ex.notes ? ` · ${ex.notes}` : ""}
+                        </p>
                       </div>
+                      {exercise ? (
+                        <WatchExampleButton
+                          exerciseName={exercise.name}
+                          videoYoutubeId={exercise.videoYoutubeId}
+                          sourceName={exercise.sourceName}
+                        />
+                      ) : null}
                     </li>
                   );
                 })}
@@ -379,12 +369,20 @@ export default function CalculatorPage() {
           ))}
         </section>
       )}
+
+      <p className="text-center text-sm text-[var(--fit-muted)]">
+        Prefer picking your own moves?{" "}
+        <Link href="/build" className="font-medium text-[var(--fit-primary)]">
+          Build a custom workout
+        </Link>
+      </p>
     </div>
   );
 }
 
-const selectClass =
-  "flex h-9 w-full rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-3 text-sm";
+const selectClass = cn(
+  "mt-1.5 flex h-9 w-full rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] px-3 text-sm",
+);
 
 function Field({
   label,
@@ -394,20 +392,18 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <Label className="text-xs text-[var(--fit-muted)]">{label}</Label>
-      <div className="mt-1.5">{children}</div>
-    </div>
+    <label className="block text-sm font-medium">
+      {label}
+      {children}
+    </label>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-[var(--fit-bg)] px-3 py-2">
-      <dt className="text-[11px] uppercase tracking-wide text-[var(--fit-muted)]">
-        {label}
-      </dt>
-      <dd className={cn("mt-0.5 font-medium capitalize")}>{value}</dd>
+      <dt className="text-xs text-[var(--fit-muted)]">{label}</dt>
+      <dd className="font-medium capitalize">{value}</dd>
     </div>
   );
 }

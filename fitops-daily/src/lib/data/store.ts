@@ -1,5 +1,9 @@
 import type {
+  ActiveProgram,
+  CalculatorDraft,
+  CustomWorkout,
   DailyQuote,
+  DifficultyMode,
   ExerciseStatus,
   JournalEntry,
   Profile,
@@ -21,15 +25,30 @@ import {
   QUOTES,
   WORKOUT_DAYS,
   WORKOUT_ITEMS,
-  getItemsForDay,
   getWorkoutDayByCode,
 } from "@/lib/data/seed";
+import { resolveItemsForDay } from "@/lib/workout/resolve";
 import {
   getLocalDateString,
   getWorkoutCodeForDate,
   getZonedNow,
   pickStableQuoteIndex,
 } from "@/lib/workout/logic";
+
+export const DEFAULT_CALCULATOR_DRAFT: CalculatorDraft = {
+  sex: "unspecified",
+  heightIn: "68",
+  currentWeightLb: "185",
+  currentBmi: "",
+  goalWeightLb: "175",
+  waistIn: "",
+  chestIn: "",
+  hipsIn: "",
+  goalWaistIn: "",
+  goalFocus: "recomp",
+  daysPerWeek: "3",
+  experience: "beginner",
+};
 
 export interface AppState {
   authenticated: boolean;
@@ -49,8 +68,14 @@ export interface AppState {
   >;
   /** Saved alternate regimen from the body calculator. */
   alternateRegimen: GeneratedRegimen | null;
+  /** User-built A/B/C plan. */
+  customWorkout: CustomWorkout | null;
   /** Which plan Today/Routine should emphasize. */
-  activeProgram: "military" | "alternate";
+  activeProgram: ActiveProgram;
+  /** Modified / normal / advanced exercise presentations. */
+  difficultyMode: DifficultyMode;
+  /** Persisted body-goal planner form (including sex). */
+  calculatorDraft: CalculatorDraft;
 }
 
 export function defaultState(overrides?: Partial<Profile>): AppState {
@@ -74,7 +99,10 @@ export function defaultState(overrides?: Partial<Profile>): AppState {
     exerciseNotes: {},
     sourceOverrides: {},
     alternateRegimen: null,
+    customWorkout: null,
     activeProgram: "military",
+    difficultyMode: "normal",
+    calculatorDraft: { ...DEFAULT_CALCULATOR_DRAFT },
   };
 }
 
@@ -90,14 +118,22 @@ export function loadState(userId?: string | null): AppState {
   if (typeof window === "undefined") return defaultState();
   const saved = loadStateForUser(userId ?? DEMO_USER_ID);
   if (!saved) return defaultState(userId ? { id: userId } : undefined);
+  const base = defaultState(userId ? { id: userId } : undefined);
   return {
-    ...defaultState(userId ? { id: userId } : undefined),
+    ...base,
     ...saved,
     profile: {
-      ...defaultState().profile,
+      ...base.profile,
       ...saved.profile,
       id: userId || saved.profile?.id || DEMO_USER_ID,
     },
+    customWorkout: saved.customWorkout ?? null,
+    difficultyMode: saved.difficultyMode ?? "normal",
+    calculatorDraft: {
+      ...DEFAULT_CALCULATOR_DRAFT,
+      ...(saved.calculatorDraft ?? {}),
+    },
+    activeProgram: saved.activeProgram ?? "military",
   };
 }
 
@@ -158,7 +194,39 @@ export function ensureSession(
         ? s.workoutCode === "RECOVERY"
         : s.workoutDayId === day?.id),
   );
-  if (existing) return { state, session: existing };
+  if (existing) {
+    if (!day || workoutCode === "RECOVERY") {
+      return { state, session: existing };
+    }
+    const items = resolveItemsForDay(state, day);
+    const existingLogs = state.logs.filter((l) => l.sessionId === existing.id);
+    const logsMatch =
+      items.length === existingLogs.length &&
+      items.every((item) =>
+        existingLogs.some((l) => l.workoutItemId === item.id),
+      );
+    if (logsMatch) return { state, session: existing };
+
+    // Active plan changed (custom/alternate/military) — rebuild today's logs.
+    const keptOtherLogs = state.logs.filter((l) => l.sessionId !== existing.id);
+    const newLogs: SessionExerciseLog[] = items.map((item) => {
+      const prior = existingLogs.find((l) => l.workoutItemId === item.id);
+      return (
+        prior ?? {
+          id: uid("log"),
+          sessionId: existing.id,
+          workoutItemId: item.id,
+          status: "planned" as ExerciseStatus,
+          completedCount: null,
+          notes: "",
+        }
+      );
+    });
+    return {
+      state: { ...state, logs: [...keptOtherLogs, ...newLogs] },
+      session: existing,
+    };
+  }
 
   const session: WorkoutSession = {
     id: uid("sess"),
@@ -176,7 +244,7 @@ export function ensureSession(
   let next: AppState = { ...state, sessions: [...state.sessions, session] };
 
   if (day && workoutCode !== "RECOVERY") {
-    const items = getItemsForDay(day.id);
+    const items = resolveItemsForDay(state, day);
     const newLogs: SessionExerciseLog[] = items.map((item) => ({
       id: uid("log"),
       sessionId: session.id,
@@ -289,8 +357,16 @@ export function exportData(state: AppState) {
     exerciseNotes: state.exerciseNotes,
     sourceOverrides: state.sourceOverrides,
     alternateRegimen: state.alternateRegimen,
+    customWorkout: state.customWorkout,
     activeProgram: state.activeProgram,
-    catalog: { exercises: EXERCISES, workoutDays: WORKOUT_DAYS, workoutItems: WORKOUT_ITEMS, quotes: QUOTES },
+    difficultyMode: state.difficultyMode,
+    calculatorDraft: state.calculatorDraft,
+    catalog: {
+      exercises: EXERCISES,
+      workoutDays: WORKOUT_DAYS,
+      workoutItems: WORKOUT_ITEMS,
+      quotes: QUOTES,
+    },
   };
 }
 

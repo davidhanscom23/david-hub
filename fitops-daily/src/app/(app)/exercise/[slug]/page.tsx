@@ -14,6 +14,7 @@ import {
   WORKOUT_ITEMS,
   getExerciseBySlug,
 } from "@/lib/data/seed";
+import { EXERCISE_VARIANTS } from "@/lib/data/variants";
 import { formatTarget } from "@/lib/workout/logic";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +110,47 @@ export default function ExerciseDetailPage() {
         <Detail label="Regression" value={exercise.regression} />
         <Detail label="Progression" value={exercise.progression} />
       </section>
+
+      {EXERCISE_VARIANTS[exercise.slug] ? (
+        <section className="space-y-4 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
+          <div>
+            <h2 className="font-semibold">Difficulty variations</h2>
+            <p className="mt-1 text-sm text-[var(--fit-muted)]">
+              Choose Modified / Normal / Advanced in Today, Routine, or Settings
+              to swap the whole plan. Each variation has its own demo.
+            </p>
+          </div>
+          {(["modified", "advanced"] as const).map((mode) => {
+            const variant = EXERCISE_VARIANTS[exercise.slug][mode];
+            return (
+              <div
+                key={mode}
+                className="space-y-2 rounded-lg bg-[var(--fit-bg)] p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--fit-accent)]">
+                      {mode}
+                    </p>
+                    <p className="font-medium">{variant.name}</p>
+                  </div>
+                  <WatchExampleButton
+                    exerciseName={variant.name}
+                    videoYoutubeId={variant.videoYoutubeId}
+                    sourceName={exercise.sourceName}
+                  />
+                </div>
+                <p className="text-sm text-[var(--fit-muted)]">
+                  {variant.shortCue}
+                </p>
+                <p className="text-sm leading-relaxed text-[var(--fit-text)]">
+                  {variant.description}
+                </p>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
 
       <section className="space-y-3 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
         <h2 className="font-semibold">Accredited source</h2>

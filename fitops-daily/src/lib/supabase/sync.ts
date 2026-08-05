@@ -3,11 +3,11 @@ import { defaultState } from "@/lib/data/store";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, ScheduleMode } from "@/lib/types";
 
-export const CLOUD_STATE_VERSION = 1 as const;
+export const CLOUD_STATE_VERSION = 2 as const;
 
 /** Serializable training payload stored in profiles.app_state */
 export interface CloudAppPayload {
-  version: typeof CLOUD_STATE_VERSION;
+  version: typeof CLOUD_STATE_VERSION | 1;
   updatedAt: string;
   profile: Omit<Profile, "id">;
   sessions: AppState["sessions"];
@@ -18,6 +18,9 @@ export interface CloudAppPayload {
   sourceOverrides: AppState["sourceOverrides"];
   alternateRegimen: AppState["alternateRegimen"];
   activeProgram: AppState["activeProgram"];
+  customWorkout?: AppState["customWorkout"];
+  difficultyMode?: AppState["difficultyMode"];
+  calculatorDraft?: AppState["calculatorDraft"];
 }
 
 export interface RemoteProfileRow {
@@ -35,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function isCloudAppPayload(value: unknown): value is CloudAppPayload {
   if (!isRecord(value)) return false;
-  if (value.version !== CLOUD_STATE_VERSION) return false;
+  if (value.version !== 1 && value.version !== 2) return false;
   if (typeof value.updatedAt !== "string") return false;
   if (!isRecord(value.profile)) return false;
   return (
@@ -65,6 +68,9 @@ export function toCloudPayload(state: AppState): CloudAppPayload {
     sourceOverrides: state.sourceOverrides,
     alternateRegimen: state.alternateRegimen,
     activeProgram: state.activeProgram,
+    customWorkout: state.customWorkout,
+    difficultyMode: state.difficultyMode,
+    calculatorDraft: state.calculatorDraft,
   };
 }
 
@@ -74,7 +80,8 @@ export function hasTrainingData(state: AppState): boolean {
     state.journals.length > 0 ||
     state.logs.length > 0 ||
     Object.keys(state.exerciseNotes).length > 0 ||
-    state.alternateRegimen !== null
+    state.alternateRegimen !== null ||
+    state.customWorkout !== null
   );
 }
 
@@ -107,6 +114,12 @@ export function applyCloudPayload(
     sourceOverrides: payload.sourceOverrides ?? {},
     alternateRegimen: payload.alternateRegimen ?? null,
     activeProgram: payload.activeProgram ?? "military",
+    customWorkout: payload.customWorkout ?? null,
+    difficultyMode: payload.difficultyMode ?? "normal",
+    calculatorDraft: {
+      ...defaultState().calculatorDraft,
+      ...(payload.calculatorDraft ?? {}),
+    },
   };
 }
 
