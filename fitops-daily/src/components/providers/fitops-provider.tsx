@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  ActiveProgram,
+  CalculatorDraft,
+  CustomWorkout,
+  DifficultyMode,
   ExerciseStatus,
   JournalEntry,
   Profile,
@@ -34,7 +38,9 @@ import {
   hydrateSupabaseState,
   pushAppState,
 } from "@/lib/supabase/sync";
-import { DEMO_USER_ID, QUOTES, getExerciseById, getItemsForDay } from "@/lib/data/seed";
+import { applyDifficultyToExercise } from "@/lib/data/variants";
+import { resolveItemsForDay, dayByCode } from "@/lib/workout/resolve";
+import { DEMO_USER_ID, QUOTES, getExerciseById } from "@/lib/data/seed";
 import {
   clearUserData,
   completeWorkout,
@@ -116,7 +122,10 @@ interface FitOpsContextValue {
     },
   ) => void;
   saveAlternateRegimen: (regimen: GeneratedRegimen | null) => void;
-  setActiveProgram: (program: "military" | "alternate") => void;
+  saveCustomWorkout: (workout: CustomWorkout | null) => void;
+  setActiveProgram: (program: ActiveProgram) => void;
+  setDifficultyMode: (mode: DifficultyMode) => void;
+  setCalculatorDraft: (patch: Partial<CalculatorDraft>) => void;
   exportJson: () => string;
   exportCsv: () => string;
   clearAllData: () => void;
@@ -535,15 +544,43 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       commit((prev) => ({
         ...prev,
         alternateRegimen: regimen,
-        activeProgram: regimen ? "alternate" : "military",
+        activeProgram: regimen ? "alternate" : prev.activeProgram === "alternate" ? "military" : prev.activeProgram,
+      }));
+    },
+    [commit],
+  );
+
+  const saveCustomWorkout = useCallback(
+    (workout: CustomWorkout | null) => {
+      commit((prev) => ({
+        ...prev,
+        customWorkout: workout,
+        activeProgram: workout ? "custom" : prev.activeProgram === "custom" ? "military" : prev.activeProgram,
       }));
     },
     [commit],
   );
 
   const setActiveProgram = useCallback(
-    (program: "military" | "alternate") => {
+    (program: ActiveProgram) => {
       commit((prev) => ({ ...prev, activeProgram: program }));
+    },
+    [commit],
+  );
+
+  const setDifficultyMode = useCallback(
+    (mode: DifficultyMode) => {
+      commit((prev) => ({ ...prev, difficultyMode: mode }));
+    },
+    [commit],
+  );
+
+  const setCalculatorDraft = useCallback(
+    (patch: Partial<CalculatorDraft>) => {
+      commit((prev) => ({
+        ...prev,
+        calculatorDraft: { ...prev.calculatorDraft, ...patch },
+      }));
     },
     [commit],
   );
@@ -604,7 +641,10 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       setExerciseNote,
       setSourceOverride,
       saveAlternateRegimen,
+      saveCustomWorkout,
       setActiveProgram,
+      setDifficultyMode,
+      setCalculatorDraft,
       exportJson,
       exportCsv,
       clearAllData,
@@ -630,7 +670,10 @@ export function FitOpsProvider({ children }: { children: ReactNode }) {
       setExerciseNote,
       setSourceOverride,
       saveAlternateRegimen,
+      saveCustomWorkout,
       setActiveProgram,
+      setDifficultyMode,
+      setCalculatorDraft,
       exportJson,
       exportCsv,
       clearAllData,
@@ -652,22 +695,30 @@ export function useEnrichedLogs(session: WorkoutSession | null) {
   const { getSessionLogs, state } = useFitOps();
   if (!session || !session.workoutDayId) return [];
   const logs = getSessionLogs(session.id);
-  const items = getItemsForDay(session.workoutDayId);
+  const day = dayByCode(session.workoutCode);
+  if (!day) return [];
+  const items = resolveItemsForDay(state, day);
   return items.map((item) => {
-    const exercise = getExerciseById(item.exerciseId)!;
-    const override = state.sourceOverrides[exercise.id];
+    const base = getExerciseById(item.exerciseId)!;
+    const override = state.sourceOverrides[base.id];
+    const resolved = applyDifficultyToExercise(
+      base,
+      item,
+      state.difficultyMode,
+    );
     const log = logs.find((l) => l.workoutItemId === item.id);
     return {
-      item,
+      item: resolved.item,
       exercise: {
-        ...exercise,
-        sourceUrl: override?.sourceUrl ?? exercise.sourceUrl,
-        sourceName: override?.sourceName ?? exercise.sourceName,
+        ...resolved.exercise,
+        sourceUrl: override?.sourceUrl ?? resolved.exercise.sourceUrl,
+        sourceName: override?.sourceName ?? resolved.exercise.sourceName,
         sourceMatchType:
-          (override?.sourceMatchType as typeof exercise.sourceMatchType) ??
-          exercise.sourceMatchType,
+          (override?.sourceMatchType as typeof resolved.exercise.sourceMatchType) ??
+          resolved.exercise.sourceMatchType,
       },
       log,
+      difficultyMode: resolved.mode,
     };
   });
 }

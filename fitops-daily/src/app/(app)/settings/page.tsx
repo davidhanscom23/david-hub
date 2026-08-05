@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SafetyNotice } from "@/components/fitops/safety-notice";
+import { DifficultyPicker } from "@/components/fitops/difficulty-picker";
 import { useFitOps } from "@/components/providers/fitops-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ export default function SettingsPage() {
     clearAllData,
     setSourceOverride,
     cloudSyncError,
+    setDifficultyMode,
   } = useFitOps();
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -105,6 +107,11 @@ export default function SettingsPage() {
           </p>
         </div>
       </section>
+
+      <DifficultyPicker
+        value={state.difficultyMode}
+        onChange={setDifficultyMode}
+      />
 
       <section className="space-y-3 rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
         <h2 className="font-semibold">Edit source links</h2>

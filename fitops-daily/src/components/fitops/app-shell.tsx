@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   Dumbbell,
+  Layers,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/today", label: "Today", icon: CalendarDays },
   { href: "/routine", label: "Routine", icon: Dumbbell },
+  { href: "/build", label: "Build", icon: Layers },
   { href: "/calculator", label: "Calc", icon: Calculator },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/progress", label: "Progress", icon: ChartNoAxesCombined },
@@ -79,7 +81,7 @@ export function SideNav() {
           {links.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             const fullLabel =
-              label === "Calc" ? "Calculator" : label;
+              label === "Calc" ? "Calculator" : label === "Build" ? "Build" : label;
             return (
               <li key={href}>
                 <Link

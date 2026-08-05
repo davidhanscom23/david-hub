@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Quote } from "lucide-react";
 import { ExerciseCard } from "@/components/fitops/exercise-card";
+import { DifficultyPicker } from "@/components/fitops/difficulty-picker";
 import { JournalEditor } from "@/components/fitops/journal-editor";
 import { SafetyNotice } from "@/components/fitops/safety-notice";
 import { WeeklyCompletionStrip } from "@/components/fitops/weekly-completion-strip";
@@ -29,6 +30,7 @@ export default function TodayPage() {
     setSessionStatus,
     getQuoteForDate,
     ensureQuoteForDate,
+    setDifficultyMode,
   } = useFitOps();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [started, setStarted] = useState(false);
@@ -103,8 +105,20 @@ export default function TodayPage() {
           {day?.title}
           {day?.focus ? ` · ${day.focus}` : ""} ·{" "}
           <span className="capitalize">{session.status}</span>
+          {state.activeProgram !== "military"
+            ? ` · ${state.activeProgram} plan`
+            : ""}
+          {state.difficultyMode !== "normal"
+            ? ` · ${state.difficultyMode}`
+            : ""}
         </p>
       </header>
+
+      <DifficultyPicker
+        value={state.difficultyMode}
+        onChange={setDifficultyMode}
+        compact
+      />
 
       <blockquote className="rounded-xl border border-[var(--fit-border)] bg-[var(--fit-surface)] p-4">
         <div className="flex gap-3">
