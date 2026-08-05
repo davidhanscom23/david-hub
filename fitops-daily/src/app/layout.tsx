@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: "FitOps Daily",
   description:
     "Private military-style workout tracker with daily routine, exercise demos, journal, and progress.",
+  icons: {
+    icon: "/fitops-sergeant.png",
+    apple: "/fitops-sergeant.png",
+  },
 };
 
 export const viewport: Viewport = {

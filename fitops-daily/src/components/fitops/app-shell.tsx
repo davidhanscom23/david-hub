@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -57,13 +58,22 @@ export function SideNav() {
   return (
     <aside className="hidden w-56 shrink-0 border-r border-[var(--fit-border)] bg-[var(--fit-surface)] md:block">
       <div className="sticky top-0 flex h-dvh flex-col gap-6 p-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fit-accent)]">
-            FitOps
-          </p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[var(--fit-text)]">
-            Daily
-          </h1>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/fitops-sergeant.png"
+            alt="FitOps Daily logo"
+            width={44}
+            height={44}
+            className="rounded-lg border border-[var(--fit-border)] bg-[var(--fit-bg)] object-cover"
+          />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--fit-accent)]">
+              FitOps
+            </p>
+            <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-[var(--fit-text)]">
+              Daily
+            </h1>
+          </div>
         </div>
         <ul className="space-y-1">
           {links.map(({ href, label, icon: Icon }) => {

@@ -105,3 +105,19 @@
     background-attachment: fixed;
   }
 }
+
+/* Woodland-style camouflage for the login screen only */
+.fitops-camo {
+  background-color: #4a5c3a;
+  background-image:
+    radial-gradient(ellipse 42% 34% at 12% 18%, #2f3d28 0%, transparent 58%),
+    radial-gradient(ellipse 48% 38% at 78% 12%, #6b5a3a 0%, transparent 55%),
+    radial-gradient(ellipse 36% 42% at 58% 48%, #1f2a1a 0%, transparent 60%),
+    radial-gradient(ellipse 44% 36% at 22% 72%, #8a7a52 0%, transparent 58%),
+    radial-gradient(ellipse 38% 40% at 88% 68%, #3a4a30 0%, transparent 56%),
+    radial-gradient(ellipse 50% 32% at 48% 88%, #5c4a32 0%, transparent 60%),
+    radial-gradient(ellipse 28% 28% at 40% 28%, #2a3822 0%, transparent 62%),
+    radial-gradient(ellipse 30% 26% at 70% 78%, #7a6844 0%, transparent 60%);
+  background-size: 100% 100%;
+  background-attachment: fixed;
+}
