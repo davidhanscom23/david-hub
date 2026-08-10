@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ExerciseCard } from "@/components/fitops/exercise-card";
 import { DifficultyPicker } from "@/components/fitops/difficulty-picker";
 import { RestTimer } from "@/components/fitops/rest-timer";
+import { PresetPlans } from "@/components/fitops/preset-plans";
 import {
   EXERCISES,
   WORKOUT_DAYS,
@@ -125,6 +126,8 @@ export default function RoutinePage() {
       </div>
 
       <RestTimer />
+
+      <PresetPlans />
 
       {planView === "alternate" && alternate ? (
         <div className="space-y-4">
