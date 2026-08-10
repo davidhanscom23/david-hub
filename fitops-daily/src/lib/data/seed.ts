@@ -1,3 +1,4 @@
+import { PRESET_EXERCISE_DEFS, PRESET_VIDEO_IDS } from "@/lib/data/presets";
 import type { Exercise, Quote, WorkoutDay, WorkoutItem } from "@/lib/types";
 
 export const DEMO_USER_ID = "demo-user";
@@ -1134,4 +1135,17 @@ export function getItemsForDay(dayId: string): WorkoutItem[] {
   return WORKOUT_ITEMS.filter((i) => i.workoutDayId === dayId).sort(
     (a, b) => a.orderIndex - b.orderIndex,
   );
+}
+
+// Register preset (Chair Tai Chi) seated movements into the exercise catalog
+// so Today / Routine / exercise pages can resolve and track them by slug.
+if (!EXERCISES.some((e) => e.slug === PRESET_EXERCISE_DEFS[0]?.slug)) {
+  const presetStart = EXERCISES.length;
+  PRESET_EXERCISE_DEFS.forEach((def, i) => {
+    EXERCISES.push({
+      ...def,
+      id: `ex-${presetStart + i + 1}`,
+      videoYoutubeId: PRESET_VIDEO_IDS[def.slug],
+    });
+  });
 }
