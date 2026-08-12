@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Agent ship discipline
+
+Repo-wide Cursor agent habits live in `.cursor/rules/ship-discipline.mdc` (always apply): verify with evidence, three-strike debugging, reproduce-before-fix, plan gap checks, clean dig artifacts, ask for missing keys early.
+
+
+
 ## Cursor Cloud specific instructions
 
 This repo is **David's RunPod + ComfyUI Kit**: Bash scripts that run on a RunPod GPU
